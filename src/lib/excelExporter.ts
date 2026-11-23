@@ -1,6 +1,4 @@
-import fs from 'fs';
 import path from 'path';
-import JSZip from 'jszip';
 import XlsxPopulate from 'xlsx-populate';
 import type { ExtractionResult, MedicalPlan } from './types';
 
@@ -52,8 +50,7 @@ function writeMedicalColumn(
 
 export async function generateFilledExcel(data: ExtractionResult): Promise<Buffer> {
   const templatePath = path.join(process.cwd(), 'templates', EXCEL_TEMPLATE);
-  const templateBuf = fs.readFileSync(templatePath);
-  const workbook = await XlsxPopulate.fromDataAsync(templateBuf);
+  const workbook = await XlsxPopulate.fromFileAsync(templatePath);
 
   // 1. Populate Medical Sheet
   const medSheet = workbook.sheet('Medical');
@@ -62,6 +59,7 @@ export async function generateFilledExcel(data: ExtractionResult): Promise<Buffe
     setIfPresent(medSheet, 'O1', `UHC RENEWAL EFFECTIVE\n${data.effectiveDate}`);
 
     const plans = data.medicalPlans || [];
+    // Columns C (Current Opt 1), G (Current Opt 2), K (Renewal Opt 1), O (Renewal Opt 2)
     writeMedicalColumn(medSheet, 'C', 'E', plans[0], false);
     writeMedicalColumn(medSheet, 'G', 'I', plans[1], false);
     writeMedicalColumn(medSheet, 'K', 'M', plans[2], true);
@@ -79,21 +77,11 @@ export async function generateFilledExcel(data: ExtractionResult): Promise<Buffe
         c.lineOfCoverage.toLowerCase().includes(keyword.toLowerCase())
       );
 
-    const dentalLow =
-      findCov('dental') &&
-      data.ancillaryCoverages.find((c) => /dental.*low/i.test(c.lineOfCoverage));
-    const dentalHigh = data.ancillaryCoverages.find((c) =>
-      /dental.*high/i.test(c.lineOfCoverage)
-    );
+    const dentalLow = findCov('dental') && data.ancillaryCoverages.find((c) => /dental.*low/i.test(c.lineOfCoverage));
+    const dentalHigh = data.ancillaryCoverages.find((c) => /dental.*high/i.test(c.lineOfCoverage));
     const vision = findCov('vision');
-    const life = data.ancillaryCoverages.find((c) =>
-      /group term life/i.test(c.lineOfCoverage)
-    );
-    const add = data.ancillaryCoverages.find(
-      (c) =>
-        /accidental death/i.test(c.lineOfCoverage) &&
-        !/voluntary/i.test(c.lineOfCoverage)
-    );
+    const life = data.ancillaryCoverages.find((c) => /group term life/i.test(c.lineOfCoverage));
+    const add = data.ancillaryCoverages.find((c) => /accidental death/i.test(c.lineOfCoverage) && !/voluntary/i.test(c.lineOfCoverage));
     const std = findCov('short term');
 
     if (dentalLow) {
@@ -122,22 +110,5 @@ export async function generateFilledExcel(data: ExtractionResult): Promise<Buffe
     }
   }
 
-  const populatedBuf = await workbook.outputAsync();
-
-  // Preserve original workbook.xml, drawings, rels, and content types to avoid Excel repair warnings
-  const origZip = await JSZip.loadAsync(templateBuf);
-  const popZip = await JSZip.loadAsync(populatedBuf);
-
-  for (const part of [
-    'xl/worksheets/sheet1.xml',
-    'xl/worksheets/sheet2.xml',
-    'xl/sharedStrings.xml',
-  ]) {
-    const file = popZip.file(part);
-    if (file) {
-      origZip.file(part, await file.async('nodebuffer'));
-    }
-  }
-
-  return await origZip.generateAsync({ type: 'nodebuffer' });
+  return await workbook.outputAsync();
 }

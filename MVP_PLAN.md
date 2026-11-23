@@ -45,8 +45,7 @@
 
 ---
 
-### [🟡 Awaiting Manual Verification] Step 6: Vercel Free-Tier Deployment (Live Link)
+### [x] Step 6: Vercel Free-Tier Deployment (Live Link)
 * **What we built:**
-  * `maxDuration = 60` on `/api/extract`, `outputFileTracingIncludes` for `templates/**/*` in `next.config.ts`, and full E2E production build + API test.
-* **How you verify manually:**
-  * Deploy to Vercel (`npx.cmd vercel --prod`) with `OPENAI_API_KEY` set in Vercel Environment Variables, then test the live URL end-to-end.
+  * `maxDuration = 60` on `/api/extract`, `outputFileTracingIncludes` for `templates/**/*` in `next.config.ts`, Fluid Compute enabled (`iad1`), and full E2E production test.
+* **Status:** Verified live on Vercel (`vercelresult/Harborview_Renewal_Comparison.xlsx` & `vercelresult/Harborview_Renewal_Proposal.pptx` verified against PDFs).
